@@ -147,7 +147,7 @@ async function main() {
   console.log(`✔ ${createdCustomers.length} kliyan demo kreye (modpas: Client123!)`);
 
   // ---- 100 KÒMAND ----
-  const orderStatuses = ['PENDING', 'PAID', 'PROCESSING', 'DELIVERED', 'CANCELLED'] as const;
+  const orderStatuses = ['PENDING', 'PAID', 'PROCESSING', 'DELIVERED', 'CANCELLED'];
   for (let i = 0; i < 100; i++) {
     const customer = randomItem(createdCustomers);
     const location = randomItem(CITIES);

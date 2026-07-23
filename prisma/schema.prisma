@@ -1,0 +1,298 @@
+// Tipa Store - Prisma Schema
+// Kouvri: Itilizatè, Pwodwi, Kategori, Kòmand, Peman, Fakti, CMS Home Page, Rating/Review
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------- ENUMS --------------------
+
+enum Role {
+  CUSTOMER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PROCESSING
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  MONCASH
+  NATCASH
+}
+
+enum SectionType {
+  HERO_SLIDER
+  PROMO_BANNER
+  POPULAR_CATEGORIES
+  RECOMMENDED_PRODUCTS
+  NEW_PRODUCTS
+  BEST_SELLERS
+  FLASH_SALE
+  STORE_BENEFITS
+  TESTIMONIALS
+  PARTNER_LOGOS
+  BLOG
+  FAQ
+  NEWSLETTER
+}
+
+// -------------------- USER / AUTH --------------------
+
+model User {
+  id            String    @id @default(cuid())
+  fullName      String
+  email         String    @unique
+  phone         String?
+  whatsapp      String?
+  passwordHash  String
+  role          Role      @default(CUSTOMER)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  addresses     Address[]
+  orders        Order[]
+  reviews       Review[]
+  wishlist      WishlistItem[]
+
+  @@index([email])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName   String
+  phone      String
+  address    String
+  city       String
+  department String
+  note       String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// -------------------- CATALOG --------------------
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  icon        String?
+  bannerImage String?
+  parentId    String?
+  parent      Category?  @relation("CategoryToSub", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToSub")
+  products    Product[]
+  createdAt   DateTime   @default(now())
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  sku           String        @unique
+  barcode       String?
+  description   String
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  brand         String?
+  tags          String[]      @default([])
+  images        String[]      @default([])
+  videoUrl      String?
+  price         Decimal       @db.Decimal(10, 2)
+  promoPrice    Decimal?      @db.Decimal(10, 2)
+  stock         Int           @default(0)
+  lowStockAt    Int           @default(5)
+  colors        String[]      @default([])
+  sizes         String[]      @default([])
+  weight        Float?
+  isFeatured    Boolean       @default(false)
+  isNew         Boolean       @default(false)
+  isBestSeller  Boolean       @default(false)
+  isFlashSale   Boolean       @default(false)
+  flashSaleEnds DateTime?
+  metaTitle     String?
+  metaDesc      String?
+  ratingAvg     Float         @default(0)
+  ratingCount   Int           @default(0)
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  orderItems    OrderItem[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+
+  @@index([categoryId])
+  @@index([isFeatured, isNew, isBestSeller, isFlashSale])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+// -------------------- ORDERS / PAYMENTS / INVOICES --------------------
+
+model Order {
+  id             String        @id @default(cuid())
+  orderNumber    String        @unique
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id])
+
+  // Fòm Kòmand (obligatwa menm pou vizitè san kont)
+  fullName       String
+  phone          String
+  whatsapp       String?
+  email          String?
+  address        String
+  city           String
+  department     String
+  note           String?
+
+  status         OrderStatus   @default(PENDING)
+  subtotal       Decimal       @db.Decimal(10, 2)
+  shippingFee    Decimal       @db.Decimal(10, 2) @default(0)
+  total          Decimal       @db.Decimal(10, 2)
+
+  items          OrderItem[]
+  payment        Payment?
+  invoice        Invoice?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
+  name       String
+  unitPrice  Decimal @db.Decimal(10, 2)
+  quantity   Int
+  color      String?
+  size       String?
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String        @unique
+  order           Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  amount          Decimal       @db.Decimal(10, 2)
+  screenshotUrl   String?
+  transactionRef  String?
+  verifiedAt      DateTime?
+  verifiedByAdmin String?
+  createdAt       DateTime      @default(now())
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  invoiceNo   String   @unique
+  pdfUrl      String?
+  emailedAt   DateTime?
+  whatsappAt  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// -------------------- CMS: HOME PAGE BUILDER --------------------
+
+model HomeSection {
+  id        String      @id @default(cuid())
+  type      SectionType
+  title     String?
+  subtitle  String?
+  buttonText String?
+  buttonUrl  String?
+  imageUrl   String?
+  videoUrl   String?
+  colorHex   String?
+  content    Json?       // fleksib: itilize pou done espesifik chak tip seksyon
+  position   Int         @default(0)
+  isActive   Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([position])
+}
+
+model FaqItem {
+  id       String  @id @default(cuid())
+  question String
+  answer   String
+  position Int     @default(0)
+  isActive Boolean @default(true)
+}
+
+model Testimonial {
+  id         String  @id @default(cuid())
+  customerName String
+  avatarUrl  String?
+  message    String
+  rating     Int     @default(5)
+  isActive   Boolean @default(true)
+}
+
+model BlogPost {
+  id        String   @id @default(cuid())
+  title     String
+  slug      String   @unique
+  excerpt   String?
+  content   String
+  coverImage String?
+  isPublished Boolean @default(false)
+  createdAt DateTime @default(now())
+}
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}

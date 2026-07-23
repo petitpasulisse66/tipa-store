@@ -93,7 +93,7 @@ async function main() {
   console.log(`✔ ${CATEGORY_NAMES.length} kategori kreye`);
 
   // ---- 20 PWODWI ----
-  const createdProducts = [];
+  const createdProducts: any[] = [];
   for (let i = 0; i < PRODUCTS_DATA.length; i++) {
     const p = PRODUCTS_DATA[i];
     const product = await prisma.product.upsert({
@@ -124,7 +124,7 @@ async function main() {
   console.log(`✔ ${createdProducts.length} pwodwi kreye`);
 
   // ---- 30 KLIYAN ----
-  const createdCustomers = [];
+  const createdCustomers: any[] = [];
   const customerPassword = await bcrypt.hash('Client123!', 10);
   for (let i = 0; i < 30; i++) {
     const first = randomItem(HAITIAN_FIRST_NAMES);

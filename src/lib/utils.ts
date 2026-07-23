@@ -1,5 +1,5 @@
-export function formatCurrency(amount: number | string): string {
-  const n = typeof amount === 'string' ? parseFloat(amount) : amount;
+export function formatCurrency(amount: number | string | { toString(): string }): string {
+  const n = typeof amount === 'number' ? amount : parseFloat(amount.toString());
   return new Intl.NumberFormat('fr-HT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' HTG';
 }
 
